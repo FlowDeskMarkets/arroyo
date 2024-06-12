@@ -1,0 +1,28 @@
+services:
+  arroyo-builder:
+    platform: ${PLATFORM}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: builder
+    volumes:
+      - builder-cache:/usr/local/cargo/registry
+      - target-cache:/app/target
+
+  arroyo-single:
+    platform: ${PLATFORM}
+    image: arroyo
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: arroyo-single
+    depends_on:
+      - arroyo-builder
+    env_file:
+      - path: .env.template
+      - path: .env
+        required: false
+
+volumes:
+  builder-cache:
+  target-cache:
