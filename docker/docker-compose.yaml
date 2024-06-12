@@ -13,6 +13,22 @@ services:
     platform: ${PLATFORM}
     image: arroyo
     build:
+      args:
+        NATS_DATA_SERVERS: ${NATS_DATA_SERVERS}
+        NATS_DATA_USER: ${NATS_DATA_USER}
+        NATS_DATA_PASSWORD: ${NATS_DATA_PASSWORD}
+        NATS_INFRA_AS: ${NATS_INFRA_AS}
+        NATS_INFRA_EU: ${NATS_INFRA_EU}
+        NATS_INFRA_US: ${NATS_INFRA_US}
+        NATS_INFRA_USER: ${NATS_INFRA_USER}
+        NATS_INFRA_PASSWORD: ${NATS_INFRA_PASSWORD}
+        COMPACTION_ENABLED: ${COMPACTION_ENABLED}
+        PROM_AUTH: ${PROM_AUTH}
+        PROM_ENDPOINT: ${PROM_ENDPOINT}
+        GCP_BUCKET_DATALAKE: ${GCP_BUCKET_DATALAKE}
+        GOOGLE_SERVICE_ACCOUNT_KEY: ${GOOGLE_SERVICE_ACCOUNT_KEY}
+        SERVICE_ACCOUNT_JSON: ${SERVICE_ACCOUNT_JSON}
+        GIT_CREDENTIALS: ${GIT_CREDENTIALS}
       context: ..
       dockerfile: docker/Dockerfile
       target: arroyo-single
