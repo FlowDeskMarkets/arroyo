@@ -1,4 +1,4 @@
-FROM arroyo-single AS arroyo-flowdesk
+FROM --platform=linux/amd64 arroyo AS arroyo-flowdesk
 
 ARG NATS_DATA_SERVERS
 ARG NATS_DATA_USER

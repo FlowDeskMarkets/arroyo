@@ -9,8 +9,9 @@ tag := 0.11.0-flowdesk.1
 default: build push
 
 build:
-	PLATFORM=linux/amd64 docker compose -f docker/docker-compose.yaml build && \
-	PLATFORM=linux/amd64 docker compose -f docker/docker-compose.override.yml build
+	export DOCKER_DEFAULT_PLATFORM=linux/amd64 && \
+	docker compose -f docker/docker-compose.yaml build && \
+	docker compose -f docker/docker-compose.override.yml build
 
 push:
 	docker tag ${image} \

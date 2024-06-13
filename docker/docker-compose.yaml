@@ -8,12 +8,12 @@ services:
       - builder-cache:/usr/local/cargo/registry
       - target-cache:/app/target
 
-  arroyo-single:
-    image: arroyo-single
+  arroyo:
+    image: arroyo
     build:
       context: ..
       dockerfile: docker/Dockerfile
-      target: arroyo-single
+      target: arroyo
     depends_on:
       - arroyo-builder
 
