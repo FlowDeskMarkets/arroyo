@@ -93,7 +93,7 @@ impl BackingStore for ParquetBackend {
     }
 
     async fn write_checkpoint_metadata(metadata: CheckpointMetadata) -> Result<()> {
-        debug!("writing checkpoint {:?}", metadata);
+        info!("writing checkpoint {:?}", metadata);
         let storage_client = get_storage_provider().await?;
         let path = metadata_path(&base_path(&metadata.job_id, metadata.epoch));
         storage_client.put(&path, metadata.encode_to_vec()).await?;

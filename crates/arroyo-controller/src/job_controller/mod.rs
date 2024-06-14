@@ -328,6 +328,7 @@ impl RunningJobModel {
 
         // TODO: maybe parallelize
         for worker in self.workers.values_mut() {
+            info!("Sending checkpoint request to worker {:?}", worker.id);
             worker
                 .connect
                 .checkpoint(Request::new(CheckpointReq {
@@ -338,11 +339,16 @@ impl RunningJobModel {
                     is_commit: false,
                 }))
                 .await?;
+            info!("Checkpoint request sent to worker {:?}", worker.id);
         }
 
         let checkpoint_id = generate_id(IdTypes::Checkpoint);
 
+        info!("Obtaining database client");
         let c = db.client().await?;
+        info!("Obtained database client");
+
+        info!("Executing create checkpoint query");
         controller_queries::execute_create_checkpoint(
             &c,
             &checkpoint_id,
@@ -354,7 +360,9 @@ impl RunningJobModel {
             &OffsetDateTime::now_utc(),
         )
         .await?;
+        info!("Create checkpoint query executed");
 
+        info!("Creating checkpoint state");
         let state = CheckpointState::new(
             self.job_id.clone(),
             checkpoint_id,
@@ -362,9 +370,13 @@ impl RunningJobModel {
             self.min_epoch,
             self.program.tasks_per_operator(),
         );
+        info!("Checkpoint state created");
 
+        info!("Updating checkpoint state");
         self.checkpoint_state = Some(CheckpointingOrCommittingState::Checkpointing(state));
+        info!("Checkpoint state updated");
 
+        info!("Checkpoint process completed successfully");
         Ok(())
     }
 
@@ -442,12 +454,14 @@ impl RunningJobModel {
                             duration
                         );
                     } else {
+                        info!("Updating checkpoint in db");
                         Self::update_checkpoint_in_db(
                             &checkpointing,
                             db,
                             DbCheckpointState::committing,
                         )
                         .await?;
+                        info!("Checkpoint updated in db");
                         let committing_data = committing_state.committing_data();
                         self.checkpoint_state =
                             Some(CheckpointingOrCommittingState::Committing(committing_state));
@@ -757,12 +771,17 @@ impl JobController {
 
         // check on checkpointing
         if self.model.checkpoint_state.is_some() {
+            info!("Starting: finish_checkpoint_if_done(&self.db)");
             self.model.finish_checkpoint_if_done(&self.db).await?;
+            info!("Finished: finish_checkpoint_if_done(&self.db)");
+
         } else if self.model.last_checkpoint.elapsed() > self.config.checkpoint_interval
             && self.cleanup_task.is_none()
         {
             // or do we need to start checkpointing?
+            info!("Starting: self.checkpoint(false).await?");
             self.checkpoint(false).await?;
+            info!("Finished: self.checkpoint(false).await?");
         }
 
         // update metrics
@@ -788,6 +807,7 @@ impl JobController {
 
     pub async fn checkpoint(&mut self, then_stop: bool) -> anyhow::Result<bool> {
         if self.model.checkpoint_state.is_none() {
+            info!("Starting checkpoint: self.model.checkpoint_state.is_none()");
             self.model
                 .start_checkpoint(&self.config.organization_id, &self.db, then_stop)
                 .await?;

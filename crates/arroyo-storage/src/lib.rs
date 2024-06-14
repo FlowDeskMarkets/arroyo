@@ -21,7 +21,7 @@ use regex::{Captures, Regex};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use tokio::sync::RwLock;
-use tracing::{debug, error, trace};
+use tracing::{debug, info, error, trace};
 
 mod aws;
 
@@ -457,13 +457,13 @@ impl StorageProvider {
                 );
                 return Ok(entry.value.clone());
             } else {
-                debug!(
+                info!(
                     "Cache expired - constructing new object store for bucket {}",
                     bucket
                 );
             }
         } else {
-            debug!(
+            info!(
                 "Cache miss - constructing new object store for bucket {}",
                 bucket
             );
@@ -631,12 +631,21 @@ impl StorageProvider {
     ) -> Result<String, StorageError> {
         let path = path.into().into();
         let bytes: Bytes = bytes.into();
-        storage_retry!(
+        info!("Putting {} into object store", path);
+
+        let result = storage_retry!(
             self.object_store
                 .put(&self.qualify_path(&path), bytes.clone())
                 .await
-        )?;
+        )
+        .map_err(Into::<StorageError>::into);
 
+        match &result {
+            Ok(_) => info!("Successfully put {} into object store", path),
+            Err(err) => error!("Failed to put {} into object store: {:?}", path, err),
+        }
+
+        // Return the formatted URL regardless of the result
         Ok(format!("{}/{}", self.canonical_url, path))
     }
 
@@ -674,14 +683,23 @@ impl StorageProvider {
         part_number: usize,
         bytes: Bytes,
     ) -> Result<PartId, StorageError> {
-        storage_retry!(
+        info!("Adding multipart");
+
+        let result = storage_retry!(
             self.object_store
                 .get_put_part(path, multipart_id)
                 .await?
                 .put_part(bytes.clone(), part_number)
                 .await
         )
-        .map_err(Into::<StorageError>::into)
+        .map_err(Into::<StorageError>::into);
+
+        match &result {
+            Ok(_) => info!("Successfully put {} into object store", path),
+            Err(err) => error!("Failed to put {} into object store: {:?}", path, err),
+        }
+
+        result
     }
 
     pub async fn close_multipart(

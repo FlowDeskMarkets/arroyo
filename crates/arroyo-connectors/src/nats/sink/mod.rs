@@ -11,7 +11,7 @@ use arroyo_rpc::ControlResp;
 use arroyo_types::*;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use tracing::warn;
+use tracing::{info, warn};
 
 pub struct NatsSinkFunc {
     pub sink_type: SinkType,
@@ -61,13 +61,16 @@ impl ArrowOperator for NatsSinkFunc {
     async fn handle_checkpoint(&mut self, _: CheckpointBarrier, _ctx: &mut ArrowContext) {
         // TODO: Implement checkpointing of in-progress data to avoid depending on
         // the downstream NATS availability to flush and checkpoint.
+        info!("Creating publisher for handling NATS checkpoint");
         let publisher = self
             .publisher
             .as_mut()
             .expect("Something went wrong while instantiating the publisher.");
 
         match publisher.flush().await {
-            Ok(_) => {}
+            Ok(_) => {
+                info!("NATS published successfully flushed messages");
+            }
             Err(e) => {
                 panic!("Failed to flush NATS publisher: {:?}", e);
             }

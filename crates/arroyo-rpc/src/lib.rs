@@ -23,6 +23,8 @@ use tonic::{
     metadata::{Ascii, MetadataValue},
     service::Interceptor,
 };
+use tracing::info;
+
 
 pub mod config;
 pub mod df;
@@ -275,27 +277,49 @@ pub fn get_hasher() -> ahash::RandomState {
 macro_rules! retry {
     ($e:expr, $max_retries:expr, $base:expr, $max_delay:expr, |$err_var: ident| $error_handler:expr) => {{
         use std::time::Duration;
-        use tracing::error;
-        let mut retries: u32 = 0;
+        use tracing::{error, info, warn};
         use rand::Rng;
+
+        let mut retries: u32 = 0;
+        info!("arroy-rpc: starting operation");
+        
         loop {
             match $e {
-                Ok(value) => break Ok(value),
+                Ok(value) => {
+                    info!("arroy-rpc: operation succeeded");
+                    break Ok(value)
+                },
                 Err(e) if retries < $max_retries => {
                     retries += 1;
-                    {
-                        let $err_var = e;
-                        $error_handler;
-                    }
+                    let $err_var = e;
+
+                    warn!(
+                        "arroy-rpc: operation failed on attempt {}: {:?}. Retrying...",
+                        retries, $err_var
+                    );
+
+                    $error_handler;
+
                     let tmp = $max_delay.min($base * (2u32.pow(retries)));
                     let backoff = tmp / 2
                         + Duration::from_micros(
                             rand::thread_rng().gen_range(0..tmp.as_micros() as u64 / 2),
                         );
 
+                    info!(
+                        "arroy-rpc: backing off for {:?} before next retry",
+                        backoff
+                    );
+
                     tokio::time::sleep(backoff).await;
-                }
-                Err(e) => break Err(e),
+                },
+                Err(e) => {
+                    error!(
+                        "arroy-rpc: operation failed after {} attempts: {:?}",
+                        retries, e
+                    );
+                    break Err(e)
+                },
             }
         }
     }};
